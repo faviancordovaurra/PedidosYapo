@@ -1,21 +1,21 @@
-🍔 Pedidos Yapo
-📘 Evaluación Parcial 2 – Encargo
+ Pedidos Yapo
+ Evaluación Parcial 2 – Encargo
 
 Asignatura: DSY1105 – Desarrollo de Aplicaciones Móviles
 Institución: Duoc UC
 
-👥 Autores
+ Autores
 
 Vicente Sánchez
 
 Fabián Córdova
 
-🧾 Descripción del Proyecto
+ Descripción del Proyecto
 
 Pedidos Yapo es una aplicación móvil desarrollada con Kotlin + Jetpack Compose + Room, que permite gestionar pedidos de comida desde distintos restaurantes.
 Incluye formularios validados, persistencia local, recursos nativos (GPS y notificaciones), y animaciones de confirmación.
 
-⚙️ Requisitos de Entorno
+ Requisitos de Entorno
 
 Android Studio Iguana o superior
 
@@ -25,7 +25,7 @@ SDK mínimo 24 (Android 7.0)
 
 compileSdk 34
 
-▶️ Instrucciones para Ejecutar
+ Instrucciones para Ejecutar
 
 Clonar el repositorio
 
