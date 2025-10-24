@@ -1,64 +1,43 @@
- Pedidos Yapo
- Evaluación Parcial 2 – Encargo
+#  Pedidos Yapo
 
-Asignatura: DSY1105 – Desarrollo de Aplicaciones Móviles
-Institución: Duoc UC
+**Evaluación Parcial 2 – Encargo**  
+**Asignatura:** DSY1105 – Desarrollo de Aplicaciones Móviles  
+**Institución:** Duoc UC  
 
- Autores
+---
 
-Vicente Sánchez
+##  Autores
+- Fabian cordova  
+- Vicente Sánchez  
 
-Fabián Córdova
+---
 
- Descripción del Proyecto
+##  Descripción del Proyecto
+**Pedidos Yapo** es una aplicación móvil desarrollada en **Kotlin + Jetpack Compose + Room**,  
+que permite gestionar pedidos de comida desde distintos restaurantes.  
+Incluye validación de formularios, almacenamiento local y diseño Material 3.
 
-Pedidos Yapo es una aplicación móvil desarrollada con Kotlin + Jetpack Compose + Room, que permite gestionar pedidos de comida desde distintos restaurantes.
-Incluye formularios validados, persistencia local, recursos nativos (GPS y notificaciones), y animaciones de confirmación.
+---
 
- Requisitos de Entorno
+##  Requisitos de entorno
+- Android Studio (versión "Narwhal" o superior)  
+- JDK 17  
+- SDK mínimo: 24 (Android 7.0)  
+- Compile SDK: 34  
 
-Android Studio Iguana o superior
+---
 
-JDK 21
+##  Tecnologías utilizadas
+- Jetpack Compose (Material 3)  
+- Room Database (persistencia local)  
+- ViewModel + LiveData  
+- Kotlin Coroutines  
+- Arquitectura MVVM  
 
-SDK mínimo 24 (Android 7.0)
+---
 
-compileSdk 34
+##  Instrucciones para ejecutar
+1. Clonar el repositorio desde GitHub  
+   ```bash
+   git clone https://github.com/faviancordovaurra/PedidosYapo.git
 
- Instrucciones para Ejecutar
-
-Clonar el repositorio
-
-git clone https://github.com/faviancordovaurra/PedidosYapo.git
-
-Abrir el proyecto en Android Studio
-
-Esperar a que Gradle sincronice dependencias
-
-Ejecutar en emulador o dispositivo físico (Android 8.0 o superior)
-
-Tecnologías Utilizadas
-
-Jetpack Compose (Material 3)
-
-Room Database
-
-ViewModel / LiveData
-
-Kotlin Coroutines
-
-Lottie Animations
-
-Google Play Services (GPS / Ubicación)
-
-Notificaciones locales
-
-
-Comandos Git útiles
-git add .
-git commit -m "Actualización de interfaz y base de datos"
-git push origin main
-
-Créditos
-
-Proyecto desarrollado como parte de la Evaluación Parcial 2 (Encargo) del curso DSY1105 – Desarrollo de Aplicaciones Móviles.
