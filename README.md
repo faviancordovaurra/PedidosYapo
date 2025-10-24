@@ -1,15 +1,18 @@
-Arquitectura MVVM + Room + Jetpack Compose + Material 3
+👥 Autores
+Vicente sanchez
+Fabián Córdova
+Sección: DSY1105 – Desarrollo de Aplicaciones Móviles
+Evaluación Parcial 2 – Encargo
+Institución: Duoc UC
 
-Pantalla inicial “Menú” con CRUD de productos
+Además contendrá:
 
-Formularios validados
+Descripción del proyecto
 
-Animaciones Lottie y recursos nativos (GPS + notificación)
+Requisitos de entorno (Android Studio, JDK 21)
 
-Tema naranja/verde (Material 3 dinámico)
+Instrucciones para ejecutar
 
-Gradle y configuración .idea funcionales
+Comandos Git para subir el repositorio
 
-Repositorio Git inicializado (.git, .gitignore, README.md)
-
-Estructura y dependencias iguales al ejemplo del profesor
+Créditos finales
