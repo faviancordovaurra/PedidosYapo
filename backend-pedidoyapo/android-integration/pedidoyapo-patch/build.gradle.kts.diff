@@ -1,0 +1,28 @@
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@
+ dependencies {
++    // Retrofit & OkHttp
++    implementation("com.squareup.retrofit2:retrofit:2.9.0")
++    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
++    implementation("com.squareup.okhttp3:okhttp:4.9.3")
++    implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
+     // other dependencies...
+ }
+@@
+ android {
+     buildTypes {
+         debug {
+-            // existing debug config
++            buildConfigField("String", "BASE_URL", '"http://10.0.2.2:8085/"')
+         }
++        staging {
++            initWith(debug)
++            buildConfigField("String", "BASE_URL", '"https://staging.example.com/"')
++        }
+         release {
+-            // existing release config
++            buildConfigField("String", "BASE_URL", '"https://api.example.com/"')
+         }
+     }
+ }

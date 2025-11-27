@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    image: ghcr.io/${APP_OWNER}/${APP_REPO}:${APP_IMAGE_TAG}
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:3306/pedidoyapo?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "8085:8085"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+
+networks:
+  default:
+    external: true

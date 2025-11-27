@@ -1,0 +1,184 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Get project version
+        id: get_version
+        run: |
+          echo "VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)" >> $GITHUB_ENV
+
+      - name: Build (skip tests)
+        run: mvn -B -DskipTests package
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ env.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+
+      - name: Create .env.prod content
+        run: |
+          echo "APP_OWNER=${{ secrets.PROD_APP_OWNER }}" > .env.prod
+          echo "APP_REPO=${{ secrets.PROD_APP_REPO }}" >> .env.prod
+          echo "APP_IMAGE_TAG=${{ env.VERSION }}" >> .env.prod
+          echo "DB_HOST=${{ secrets.PROD_DB_HOST }}" >> .env.prod
+          echo "DB_USERNAME=${{ secrets.PROD_DB_USERNAME }}" >> .env.prod
+          echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}" >> .env.prod
+
+      - name: Copy docker-compose.prod.yml to remote host
+        uses: appleboy/scp-action@v0.1.8
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "docker-compose.prod.yml"
+          target: ${{ secrets.DEPLOY_PATH }}
+
+      - name: Copy .env.prod to remote host
+        uses: appleboy/scp-action@v0.1.8
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: ".env.prod"
+          target: ${{ secrets.DEPLOY_PATH }}
+
+      - name: Pull and restart service via SSH (with DB backup & rollback)
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Source .env.prod to read DB credentials and APP vars
+            if [ -f .env.prod ]; then
+              set -a
+              # shellcheck disable=SC1091
+              . .env.prod
+              set +a
+            fi
+
+            mkdir -p backups
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+
+            echo "[deploy] Creating DB backup..."
+            if command -v mysqldump >/dev/null 2>&1; then
+              mysqldump -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" pedidoyapo > backups/pedidoyapo-${TIMESTAMP}.sql
+            else
+              echo "[deploy] mysqldump not found, attempting to install mysql client"
+              sudo apt-get update -qq
+              sudo apt-get install -y default-mysql-client
+              mysqldump -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" pedidoyapo > backups/pedidoyapo-${TIMESTAMP}.sql
+            fi
+
+            echo "[deploy] Saving previous image for rollback"
+            PREV_IMAGE=$(docker compose ps -q app | xargs -r docker inspect --format '{{.Config.Image}}' || true)
+            if [ -z "$PREV_IMAGE" ]; then
+              PREV_IMAGE=$(docker ps --filter "name=app" --format '{{.Image}}' | head -n1 || true)
+            fi
+            echo "$PREV_IMAGE" > .previous_image || true
+
+            echo "[deploy] Pulling new image and starting containers"
+            docker compose pull
+            docker compose up -d --remove-orphans
+
+            # Health check with retries
+            echo "[deploy] Running health check"
+            RETRIES=10
+            until curl -fsS --max-time 5 http://localhost:8085/actuator/health || [ $RETRIES -eq 0 ]; do
+              echo "[deploy] Waiting for app to become healthy... (retries left: $RETRIES)"
+              RETRIES=$((RETRIES-1))
+              sleep 5
+            done
+
+            if [ $RETRIES -eq 0 ]; then
+              echo "[deploy] Health check failed. Initiating rollback..."
+              PREV_IMAGE_TAG=$(cat .previous_image | awk -F ':' '{print $NF}' | tr -d '\r' || true)
+              if [ -n "$PREV_IMAGE_TAG" ]; then
+                echo "[deploy] Restoring APP_IMAGE_TAG to $PREV_IMAGE_TAG"
+                sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$PREV_IMAGE_TAG/" .env.prod || true
+                docker compose pull
+                docker compose up -d --remove-orphans
+                echo "[deploy] Rollback executed. See backups/ for DB dump"
+              else
+                echo "[deploy] No previous image found. Manual rollback required. Backups available in backups/"
+              fi
+              exit 1
+            fi
+            echo "[deploy] Deployment successful. Backups available in backups/"
+
+      - name: Download latest backup from remote host
+        if: always()
+        run: |
+          mkdir -p backups
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ./deploy_key
+          chmod 600 ./deploy_key
+          PORT="${{ secrets.SSH_PORT }}"
+          if [ -z "$PORT" ]; then PORT=22; fi
+          echo "Downloading backup from ${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/backups"
+          scp -i ./deploy_key -P $PORT "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/backups/pedidoyapo-*.sql" ./backups/ || true
+          ls -lah backups || true
+
+      - name: Install AWS CLI
+        if: always()
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y awscli
+
+      - name: Upload backup to S3 (aws)
+        if: always()
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload latest backup file to S3
+        if: always()
+        run: |
+          LATEST=$(ls -t backups/pedidoyapo-*.sql 2>/dev/null | head -n1 || true)
+          if [ -z "$LATEST" ]; then
+            echo "No backup found to upload"
+            exit 0
+          fi
+          echo "Uploading $LATEST to s3://${{ secrets.S3_BUCKET_NAME }}/backups/${{ github.repository }}"
+          aws s3 cp "$LATEST" "s3://${{ secrets.S3_BUCKET_NAME }}/backups/${{ github.repository }}"
